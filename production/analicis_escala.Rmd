@@ -1,5 +1,5 @@
 ---
-title: "Informe analisis de escalas PACES"
+title: "Informe análisis de escalas PACES"
 author: "Fondecyt n°1181239 "
 date: '`r Sys.Date()`'
 output:  
@@ -28,7 +28,7 @@ El presente documento expone un análisis de validez con la intención de dismin
 El documento esta estructurado según escalas, siendo cada una sección seleccionable en la barra de la izquierda. Dentro de cada sección se propone un conjunto de variables a eliminar, señalando las razones y el modelo propuesto. Además, en las pestañas se pueden observar descriptivos y correlaciones. 
 
 
-# Igualdad de derechos para grupos etnicos  {.tabset .tabset-fade .tabset-pills}
+# Igualdad de derechos para grupos étnicos  {.tabset .tabset-fade .tabset-pills}
 
 > Propongo dos opciones: de las 5 variables, se mantienen 3 en la primera opción y 4 en la segunda. Con tres variables no alcanza para hacer un factor por sí mismas, ya que faltan grados de libertad, no obstante, podría servir para modelos con más parámetros. Además, dejar 4 implica solo eliminar una, por lo que no ayuda a reducir la encuesta. 
 
@@ -101,7 +101,7 @@ summary(fit3, fit.measures=TRUE)
 
 ```{r, echo=FALSE}
 #-----------------------------------------------------------------------------------------##
-# Crear tabla para comprarar afc
+# Crear tabla para comparar AFC
 
 pacman::p_load(dplyr, kableExtra, knitr)
 
@@ -454,7 +454,7 @@ sjPlot::plot_likert(est_proc_tolet,
 ```
 
 
-* La variable D si bien posee más variación, es curioso que genere una respuesta tan distinta a las demás. Parece estar incorporando otras dimensiones más allá de la igualdad de derechos. Quizás por que es una “promoción”, lo que va más allá de una declaración de igualdad de derechos.
+* La variable D si bien posee más variación, es curioso que genere una respuesta tan distinta a las demás. Parece estar incorporando otras dimensiones más allá de la igualdad de derechos. Quizás porque es una “promoción”, lo que va más allá de una declaración de igualdad de derechos.
 
 ## Correlaciones
 
@@ -472,7 +472,7 @@ chart.Correlation(est_proc_tolet, histogram = TRUE, method = "pearson")
 
 
 
-# Creencias del buen  ciudadano {.tabset .tabset-fade .tabset-pills}
+# Creencias del buen ciudadano {.tabset .tabset-fade .tabset-pills}
 
 
 
@@ -574,7 +574,7 @@ modificationindices(fit2)
 
 
 ```{r, echo=FALSE}
-# Crear tabla para comprarar afc
+# Crear tabla para comparar AFC
 
 pacman::p_load(dplyr, kableExtra, knitr)
 
@@ -923,7 +923,7 @@ est_proc_ddgenero <- set_na(est_proc_ddgenero, na = c(5,9), drop.levels = TRUE, 
 
 #factanal(est_proc_ddgenero, factors = 3, rotation = "none")
 
- # A E  y G tiene cargas cruzadas problematicas (>.48), b h cargas cruzadas menores a 310 
+ # A E  y G tiene cargas cruzadas problemáticas (>.48), b h cargas cruzadas menores a 310 
 
 #-----------------------------------------------------------------------------------------##
 # AFC: Modelo con todos los indicadores
@@ -1180,7 +1180,7 @@ ld$est.std<- sprintf("%.2f", ld$est.std)
 
 
 
-library(draw) #para hacer rectangulo de fit
+library(draw) #para hacer rectángulo de fit
 
 
 size <- 10
@@ -1928,11 +1928,11 @@ chart.Correlation(est_proc_inmigrantes, histogram = TRUE, method = "pearson")
 # Autoritarismo {.tabset .tabset-fade .tabset-pills}
 
 
-> Se eliminan 2 variables  y se mantienen 6 variables
+> Se eliminan 5 variables  y se mantienen 4 distribuidas en dos dimensiones. 
 
  
 
-Justificación dictaduraas
+Justificación dictaduras
 
   * P21H:  Los gobiernos autoritarios se justifican cuando traen orden y seguridad
   * P21I:  Los gobiernos autoritarios se justifican cuando traen beneficios económicos
@@ -1980,7 +1980,7 @@ factanal(est_proc_autoritarismo, factors = 1, rotation = "none")
 
 # Cuando se utiliza un solo factor no se incluyen las variables P21B y c. 
 
-# Las únicas variables que poseen una relación alta entre si son las dos más conocidas del concepto H e I  y la G que capta bien la idea de autoritarismo.
+# Las únicas variables que poseen una relación alta entre si son las dos más conocidas del concepto H e I y la G que capta bien la idea de autoritarismo.
 
 #
 
@@ -2276,7 +2276,7 @@ sjPlot::plot_likert(est_proc_autoritarismo,
 
 chart.Correlation(est_proc_autoritarismo, histogram = TRUE, method = "pearson")
 
-# La variable P21B  y P21C no correlaciona bien con las demas.   
+# La variable P21B  y P21C no correlaciona bien con las demás.   
 
 #-----------------------------------------------------------------------------------------##
 ```
