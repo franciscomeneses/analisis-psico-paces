@@ -1,0 +1,2950 @@
+---
+title: "Informe analisis de escalas PACES"
+author: "Fondecyt n°1181239 "
+date: '`r Sys.Date()`'
+output:  
+   rmdformats::material:
+      code_folding: hide  
+#   bookdown::pdf_document2:
+#      template: null
+#      toc: false
+#      keep_tex: false
+#  html_document:
+#    df_print: paged
+#    theme: paper
+#    toc: yes
+#    toc_float: yes
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = F,warning = F)
+```
+
+# Introducción
+
+El presente documento expone un análisis de validez con la intención de disminuir la cantidad de ítems por baterías de preguntas. Se busco eliminar aquellas variables que permitieran mantener o mejorar las propiedades psicométricas de las escalas. 
+
+El documento esta estructurado según escalas, siendo cada una sección seleccionable en la barra de la izquierda. Dentro de cada sección se propone un conjunto de variables a eliminar, señalando las razones y el modelo propuesto. Además, en las pestañas se pueden observar descriptivos y correlaciones. 
+
+
+# Igualdad de derechos para grupos etnicos  {.tabset .tabset-fade .tabset-pills}
+
+> Propongo dos opciones: de las 5 variables, se mantienen 3 en la primera opción y 4 en la segunda. Con tres variables no alcanza para hacer un factor por sí mismas, ya que faltan grados de libertad, no obstante, podría servir para modelos con más parámetros. Además, dejar 4 implica solo eliminar una, por lo que no ayuda a reducir la encuesta. 
+
+  __Variables incluidas en todos los modelos__
+
+  * P16A los grupos étnicos deberían tener la misma oportunidad de acceder a una buena educación
+
+  * P16B los grupos étnicos deberían tener la misma oportunidad de conseguir buenos trabajos
+
+  * P16E Los miembros de todos los grupos étnicos deberían tener los mismos derechos y responsabilidades
+
+  __Variable incluida en un modelo__
+
+  * P16C Las escuelas deberían enseñar a los estudiantes a respetar a los miembros de todos los grupos étnicos
+Variable eliminada: 
+
+
+  __Variable excluida__ _comentario_: Si bien presenta más varianza y es interesante que los estudiantes no estén de acuerdo con eso, posee una menor relación con las otras variables, por lo que los modelos ajustan mejor sin ella.  
+
+  * P16D Debería promoverse que miembros de todos los grupos étnicos se presentarán a las elecciones para cargos políticos. 
+
+
+```{r,echo=FALSE}
+load(file="../input/data/original.RData")
+
+pacman::p_load(dplyr, sjmisc, car, sjlabelled, stargazer, SciViews, summarytools, misty,sjPlot,PerformanceAnalytics,ggplot2,lavaan)
+
+
+# Seleccionar y renombrar variables de la base de datos de estudiantes.                               
+est_proc_tolet <- est  %>% dplyr::select(starts_with("P16")) 
+
+est_proc_tolet <- set_na(est_proc_tolet, na = c(5,9), drop.levels = TRUE, as.tag = FALSE) # Transformar a NA
+est_proc_tolet =na.omit(est_proc_tolet)
+
+```
+
+## Modelos de medida
+
+```{r, echo=FALSE, results='hide'}
+
+
+# Modelo general 
+
+HS.model1 <- ' tol_etnia  =~ P16A + P16B + P16C + P16D+  P16E'
+
+fit1 <- cfa(HS.model1, data=est_proc_tolet, estimator="DWLS", ordered = T)
+
+summary(fit1, fit.measures=TRUE)
+
+
+# Modelo reducido 1
+
+HS.model2 <- ' tol_etnia  =~ P16A  + P16B +  P16E'
+
+fit2 <- cfa(HS.model2, data=est_proc_tolet, estimator="DWLS", ordered=T)
+
+summary(fit2, fit.measures=TRUE)
+
+
+# Modelo reducido 2
+
+#HS.model3 <- ' tol_etnia  =~ P16A + P16B + P16C +  P16E'
+HS.model3 <- ' tol_etnia  =~ P16A + P16B + P16C +  P16E'
+
+fit3 <- cfa(HS.model3, data=est_proc_tolet, estimator="DWLS", ordered=T)
+
+summary(fit3, fit.measures=TRUE)
+```
+
+
+```{r, echo=FALSE}
+#-----------------------------------------------------------------------------------------##
+# Crear tabla para comprarar afc
+
+pacman::p_load(dplyr, kableExtra, knitr)
+
+# extract fit indices from models and add to table
+sum_fit1<- dplyr::bind_rows(fitmeasures(fit1)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                    fitmeasures(fit2)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],fitmeasures(fit3)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")])
+
+
+# Customize object
+sum_fit1$mod <- c("Todas las variables","Tres indicadores","Cuatro indicadores")
+sum_fit1$nobs <- c(nobs(fit1),nobs(fit2),nobs(fit3))
+sum_fit1$est <- c("DWLS","DWLS","DWLS")
+sum_fit1$df_ch<-c(sum_fit1$chisq/sum_fit1$df)
+sum_fit1 <- dplyr::select(sum_fit1,mod,nobs,est,everything())
+colnames <- c("Utilizando variables como","N","Estimador","chi2","df","p-value","CFI","TLI","RMSEA","SRMR","Chi2/df")
+
+# Create table
+table_cfa_fits1 <-kable(sum_fit1, format="pandoc", digits=3, booktabs=T, col.names=colnames,  caption = "Comparación entre modelos", escape = FALSE) %>% kable_styling(full_width = F, font_size = 14)
+table_cfa_fits1
+
+
+
+```
+
+
+
+
+> Modelo reducido (Tres indicadores)
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit2, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit2 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit2) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+
+> Modelo reducido 1 (Cuatro indicadores)
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit3, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit3 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit3) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+> Modelo completo 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit1, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit1 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit1) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+
+
+
+## Descriptivos
+```
+
+
+
+
+## Descriptivos
+
+```{r, echo=FALSE}
+#sjPlot::view_df(est_proc_tolet, show.type = T, show.frq = T, show.prc = T) # Cambiar por dfsummary
+
+####------------------descriptivos---------------######
+
+# short var labels
+items <- c("A", "B","C","D","E")
+
+# cambiar orden para la leyenda
+labels= c("Muy en desacuerdo",
+"En desacuerdo",
+"De acuerdo",
+"Muy de acuerdo")  ### E
+
+
+sjPlot::plot_likert(est_proc_tolet,
+                         axis.labels   = items,
+                         legend.labels = labels,
+                         legend.pos = "bottom",
+                         #cat.neutral   = , # identifica a indiferentes
+                         geom.colors   = c("#9ECAE1", "#6BAED6", "#4292C6",
+                                           "#2171B5"), # colorbrewer2.org
+                         sort.frq      = "neg.asc", # sort descending)
+                         title         = "Creencias y opiniones políticas, tolerancia etnicos",
+                         intercept.line.color = "white", # vertical middle
+                         expand.grid   = F, # no inner margins in plot
+                         show.n        = FALSE, # hide N's in axis labels
+                         grid.range    = 1.8,
+                         geom.size = 0.6, values = "sum.outside")
+```
+
+
+* La variable D si bien posee más variación, es curioso que genere una respuesta tan distinta a las demás. Parece estar incorporando otras dimensiones más allá de la igualdad de derechos. Quizás por que es una “promoción”, lo que va más allá de una declaración de igualdad de derechos.
+
+## Correlaciones
+
+
+__Igualdad de derechos para grupos etnicos__
+```{r, echo=FALSE}
+# correlaciones 
+
+chart.Correlation(est_proc_tolet, histogram = TRUE, method = "pearson")
+
+
+#-----------------------------------------------------------------------------------------##
+```
+•	La única variable que posee una correlación menor con el resto es la 17D, relativa a la promoción de cargos políticos para grupos étnicos. 
+
+
+
+# Creencias del buen  ciudadano {.tabset .tabset-fade .tabset-pills}
+
+
+
+> Considerando la varianza, las cargas cruzadas y su relación con el factor considero mantener 9 de las 16 variables, en consideración de un modelo de tres dimensiones. 
+
+__Variables seleccionadas__
+
+Buen ciudadano como obediencia civil:
+
+  * P17E: Demostrar respeto por los representantes de los gobiernos en general
+  * P17K: Obedecer siempre la ley 
+  * P17N: Siempre pagar los impuestos
+ 
+Buen ciudadano como participante activo-comunitario:
+
+  * P17H: Participar en actividades para beneficiar a la gente de su comunidad
+  * P17I: Participar en actividades que promuevan los derechos humanos
+  * P17J: Participar en actividades para la protección del medio ambiente
+  
+Buen ciudadano como participante institucional:
+
+  * P17A: Votar en todas las elecciones presidenciales
+  
+  * P17F: Conversar sobre política
+  
+  * P17P: Preocuparse de que las autoridades públicas actúen correctamente
+
+
+__Variables eliminadas:__
+
+    * P17B: Unirse a un partido político
+  
+  * P17C:	Aprender de la historia del país
+  
+  * P17D:	Seguir los temas políticos en el diario, la radio, la televisión o Internet
+  
+  * P17G: Participar en protestas pacíficas en contra de las leyes que considera injustas
+  
+  * P17L:	Respetar el derecho de otros a tener su propia opinión
+  
+  * P17M: Apoyar a personas en peor situación económica que uno 
+  
+  * P17O: Apoyar a personas en peor situación económica que uno 
+
+```{r, echo=FALSE,results='hide'}
+load(file="../input/data/original.RData")
+
+pacman::p_load(dplyr, sjmisc, car, sjlabelled, stargazer, SciViews, summarytools, misty,sjPlot,PerformanceAnalytics,ggplot2,lavaan,stats, semPlot)
+
+# Seleccionar y renombrar variables de la base de datos de estudiantes.                               
+est_proc_buenci <- est  %>% dplyr::select(starts_with("P17")) 
+
+est_proc_buenci <- set_na(est_proc_buenci, na = c(5,9), drop.levels = TRUE, as.tag = FALSE) # Transformar a NA
+
+est_proc_buenci=na.omit(est_proc_buenci)
+```
+
+  
+
+## Modelos de medida
+
+```{r, echo=FALSE, results='hide'}
+# Exploratorio 
+
+factanal(est_proc_buenci, factors = 3, rotation = "none")
+
+
+# AFC: Modelo con todos los indicadores
+
+HS.model1 <- ' deberes_civiles  =~ P17E + P17K + P17N + P17O + P17C + P17L
+               derechos_ciudadanos =~  P17A + P17B + P17D + P17F + P17G + P17P 
+               derechos_ciudadanos =~  P17H + P17I + P17J + P17M + P17J '
+
+
+fit1 <- cfa(HS.model1, data=est_proc_buenci, estimator="DWLS", ordered = T)
+
+summary(fit1, fit.measures=TRUE)
+
+#semPaths(fit1, what = "stand")
+
+# AFC: Modelo con indicadores reducidos
+
+
+#deberes_civiles  =~ P17E + P17K + P17N + P17O
+
+  HS.model2 <-  'deberes_civiles  =~ P17E + P17K + P17N  
+                part_comunitaria =~   P17H + P17I  + P17J
+                part_politica =~ P17A   + P17F  + P17P'
+  
+  fit2 <- cfa(HS.model2, data=est_proc_buenci, estimator="DWLS", ordered = T)
+  summary(fit2, fit.measures=TRUE)
+
+#semPaths(fit2, what = "stand")
+
+modificationindices(fit2)
+
+#-----------------------------------------------------------------------------------------##
+```
+
+
+```{r, echo=FALSE}
+# Crear tabla para comprarar afc
+
+pacman::p_load(dplyr, kableExtra, knitr)
+
+# extract fit indices from models and add to table
+sum_fit1<- dplyr::bind_rows(fitmeasures(fit1)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                    fitmeasures(fit2)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")])
+
+# Customize object
+sum_fit1$mod <- c("Todas las variables","Bateria recortada")
+sum_fit1$nobs <- c(nobs(fit1),nobs(fit2))
+sum_fit1$est <- c("DWLS","DWLS")
+sum_fit1$df_ch<-c(sum_fit1$chisq/sum_fit1$df)
+sum_fit1 <- dplyr::select(sum_fit1,mod,nobs,est,everything())
+colnames <- c("Modelo","$N$","Estimador","$\\chi^2$","df","p-value","CFI","TLI","RMSEA","SRMR","$\\chi2$/df")
+
+# Create table
+table_cfa_fits1 <-kable(sum_fit1, format="pandoc", digits=3, booktabs=T, col.names=colnames,  caption = "Comperación entre modelos", escape = FALSE) %>% kable_styling(full_width = F, font_size = 14)
+table_cfa_fits1
+
+
+
+```
+
+> Modelo reducido 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit2, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit2 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit2) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+> Modelo completo 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit1, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit1 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit1) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+
+
+
+## Descriptivos
+```
+
+## Descriptivos
+
+```{r, echo =FALSE}
+# Descriptivos
+ 
+#sjPlot::view_df(est_proc_buenci, show.type = T, show.frq = T) # Cambiar por dfsummary
+
+####------------------descriptivos---------------######
+
+# short var labels
+items <- c("A", "B","C","D","E", "F","G","H","I","J","K","L","M","N","O","P")
+
+# cambiar orden para la leyenda
+labels= c("Nada importante",
+"Algo importante",
+"Importante",
+"Muy importante")  ### E
+
+
+sjPlot::plot_likert(est_proc_buenci,
+                         axis.labels   = items,
+                         legend.labels = labels,
+                         legend.pos = "bottom",
+                         #cat.neutral   = , # identifica a indiferentes
+                         geom.colors   = c("#9ECAE1", "#6BAED6", "#4292C6",
+                                           "#2171B5"), # colorbrewer2.org
+                         sort.frq      = "neg.asc", # sort descending)
+                         title         = "Creencias y opiniones políticas, tolerancia etnicos",
+                         intercept.line.color = "white", # vertical middle
+                         expand.grid   = F, # no inner margins in plot
+                         show.n        = FALSE, # hide N's in axis labels
+                         grid.range    = 1.8,
+                         geom.size = 0.6, values = "sum.outside")
+```
+
+La variable L debe ser eliminada por estar muy concentrada
+
+## Correlaciones
+
+__Variables seleccionadas__
+```{r, echo=FALSE}
+# correlaciones 
+
+est_proc_buenci =na.omit(est_proc_buenci)
+
+
+varseleccionadas = est_proc_buenci %>% select(
+ P17E,
+ P17K,
+ P17N,
+ P17H, 
+ P17I,
+ P17J,
+ P17A,
+ P17F,
+ P17P)
+
+chart.Correlation(varseleccionadas, histogram = TRUE, method = "pearson")
+
+#-----------------------------------------------------------------------------------------##
+```
+
+__Variables no seleccionadas__
+
+```{r}
+
+varnoseleccionadas = est_proc_buenci %>% select(
+  P17B,
+  P17C,
+  P17D,
+  P17G,
+  P17L,
+  P17M,
+  P17O)
+
+chart.Correlation(varnoseleccionadas, histogram = TRUE, method = "pearson")
+
+
+```
+
+
+# Igualdad de derechos entre hombres y mujeres {.tabset .tabset-fade .tabset-pills}
+
+> Existen varias opciones. Sugiero quedarnos con un modelo de cuatro indicadores en dos dimensiones (publico-privado), que responde a la teoría, disminuye más indicadores y tiene mejor ajuste. Los modelos con 3 dimensiones y 6 ítem o con 2 dimensiones y 6 ítems no permiten reducir considerablemente la batería. El modelo de una dimensión tiene igualmente 4 ítems, pero es menos especifico y no responde a una división teórica importante en el tema (espacio público/privado)
+
+
+Igualdad de género en espacio publico
+ 
+ * P18C: Las mujeres deberían permanecer alejadas de la política
+ 
+ * P18D: Cuando no hay muchos trabajos disponibles, los hombres deberían tener más derecho a un trabajo que las mujeres
+  
+Igualdad de género en espacio privado
+  
+  *  P18B: La primera prioridad de las mujeres debería ser criar hijos  
+  *  P18H: El rol más importante de una mujer es cuidar su hogar y cocinar para su familia
+
+
+Variables eliminadas:
+ 
+  + P18E: Los hombres y las mujeres deberían recibir el mismo pago cuando hacen los mismos trabajos
+ 
+  + P18G: Los hombres y las mujeres deberían recibir el mismo pago cuando hacen los mismos trabajos
+ 
+  + P18A Los hombres y las mujeres deberían tener las mismas oportunidades de participar en el gobierno
+ 
+  + P18F Los hombres están mejor preparados para ser líderes políticos que las mujeres
+ 
+  + P18I Un hombre debe tener la última palabra sobre las decisiones del hogar
+
+
+
+
+```{r, echo=FALSE}
+load(file="../input/data/original.RData")
+
+pacman::p_load(dplyr, sjmisc, car, sjlabelled, stargazer, SciViews, summarytools, misty,sjPlot,PerformanceAnalytics,ggplot2,lavaan,stats, semPlot)
+
+# Seleccionar y renombrar variables de la base de datos de estudiantes.                               
+est_proc_ddgenero <- est  %>% dplyr::select(starts_with("P18")) 
+
+est_proc_ddgenero <- set_na(est_proc_ddgenero, na = c(5,9), drop.levels = TRUE, as.tag = FALSE) # Transformar a NA
+```
+
+
+
+## Modelos de medida
+
+```{r, echo=FALSE, results='hide'}
+# Exploratorio 
+
+#factanal(est_proc_ddgenero, factors = 3, rotation = "none")
+
+ # A E  y G tiene cargas cruzadas problematicas (>.48), b h cargas cruzadas menores a 310 
+
+#-----------------------------------------------------------------------------------------##
+# AFC: Modelo con todos los indicadores
+
+
+  cfa_1 <- 'ig_gen =~ P18A + P18E + P18G
+ig_pub =~ P18C + P18D + P18F 
+ig_priv =~ P18B + P18H + P18I'
+
+fit1 <- cfa(cfa_1, data=est_proc_ddgenero, estimator="DWLS", ordered = T)
+
+summary(fit1, fit.measures=TRUE)
+#modificationindices(fit1)
+
+#semPaths(fit1, what = "stand")
+
+# AFC: Modelo con indicadores reducidos
+
+
+  cfa_2 <- 'ig_gen =~ P18E + P18G
+  ig_pub =~ P18C + P18D 
+ig_priv =~ P18B + P18H'
+
+
+
+  fit2 <- cfa(cfa_2, data=est_proc_ddgenero, estimator="DWLS", ordered = T)
+
+    summary(fit2, fit.measures=TRUE)
+
+#semPaths(fit2, what = "stand")
+
+#modificationindices(fit2)
+
+cfa_3 <- 'ig_pub =~ P18C + P18D 
+ig_priv =~ P18B + P18H'
+
+
+
+  fit3 <- cfa(cfa_3, data=est_proc_ddgenero, estimator="DWLS", ordered = T)
+
+    summary(fit3, fit.measures=TRUE)
+
+    
+    ##
+    
+    cfa_4 <- 'ig_gen =~ P18A + P18E + P18G + P18F'
+
+
+
+  fit4 <- cfa(cfa_4, data=est_proc_ddgenero, estimator="DWLS", ordered = T)
+
+    summary(fit4, fit.measures=TRUE)
+
+
+```
+
+
+```{r, echo=FALSE}
+#-----------------------------------------------------------------------------------------##
+pacman::p_load(dplyr, kableExtra, knitr)
+
+# extract fit indices from models and add to table
+sum_fit1<- dplyr::bind_rows(fitmeasures(fit1)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                    fitmeasures(fit2)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                     fitmeasures(fit3)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                     fitmeasures(fit4)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")])
+
+# Customize object
+sum_fit1$mod <- c("Todas las variables","2 item por 3 dimensiones","2 item por 2 dimensiones","4 item en 1 dimensiones")
+sum_fit1$nobs <- c(nobs(fit1),nobs(fit2),nobs(fit3),nobs(fit4))
+sum_fit1$est <- c("DWLS","DWLS","DWLS","DWLS")
+sum_fit1$df_ch<-c(sum_fit1$chisq/sum_fit1$df)
+sum_fit1 <- dplyr::select(sum_fit1,mod,nobs,est,everything())
+colnames <- c("Modelo","$N$","Estimador","$\\chi^2$","df","p-value","CFI","TLI","RMSEA","SRMR","$\\chi2$/df")
+
+# Create table
+table_cfa_fits1 <-kable(sum_fit1, format="pandoc", digits=3, booktabs=T, col.names=colnames,  caption = "Comperación entre modelos", escape = FALSE) %>% kable_styling(full_width = F, font_size = 14)
+table_cfa_fits1
+
+```
+
+
+> "2 item por 3 dimensiones"
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit2, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit2 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit2) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+
+
+
+> "2 item por 2 dimensiones"
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit3, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit3 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit3) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit3), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[4,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+
+
+> "4 item en una dimensión"
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit4, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit4 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit4) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit4), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[4,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+
+
+
+
+
+> Modelo completo 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit1, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit1 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit1) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", ", N= ",nobs(fit1),"Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"$p$=",fm03[4,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+
+
+
+## Descriptivos
+```
+
+
+
+
+
+## Descriptivos
+
+```{r, echo=FALSE}
+
+#sjPlot::view_df(est_proc_ddgenero, show.type = T, show.frq = T, show.prc =T) # Cambiar por dfsummary
+
+# short var labels
+items <- c("A", "B","C","D","E", "F","G","H","I")
+
+# cambiar orden para la leyenda
+labels= c("Muy en desacuerdo",
+"En desacuerdo",
+"De acuerdo",
+"Muy de acuerdo")
+
+
+sjPlot::plot_likert(est_proc_ddgenero,
+                         axis.labels   = items,
+                         legend.labels = labels,
+                         legend.pos = "bottom",
+                         #cat.neutral   = , # identifica a indiferentes
+                         geom.colors   = c("#9ECAE1", "#6BAED6", "#4292C6",
+                                           "#2171B5"), # colorbrewer2.org
+                         sort.frq      = "neg.asc", # sort descending)
+                         title         = "Creencias y opiniones políticas, tolerancia etnicos",
+                         intercept.line.color = "white", # vertical middle
+                         expand.grid   = F, # no inner margins in plot
+                         show.n        = FALSE, # hide N's in axis labels
+                         grid.range    = 1.8,
+                         geom.size = 0.6, values = "sum.outside")
+
+
+ 
+```
+
+>  a 5%, g 7%, e 7%. La de igualdad de genero
+
+## Correlaciones
+
+```{r, echo=FALSE}
+# correlaciones 
+
+est_proc_ddgenero =na.omit(est_proc_ddgenero)
+
+chart.Correlation(est_proc_ddgenero, histogram = TRUE, method = "pearson")
+
+
+#-----------------------------------------------------------------------------------------##
+```
+
+
+## Modelos de medida ingresos
+
+```{r, echo=FALSE, results='hide'}
+# Exploratorio 
+
+factanal(est_proc_ddgenero, factors = 3, rotation = "none")
+
+ # A E  y G tiene cargas cruzadas problematicas (>.48), b h cargas cruzadas menores a 310 
+
+#-----------------------------------------------------------------------------------------##
+# AFC: Modelo con todos los indicadores
+
+
+  cfa_1 <- 'ig_gen =~ P18A + P18E + P18G
+ig_pub =~ P18C + P18D + P18F 
+ig_priv =~ P18B + P18H + P18I'
+```
+
+
+
+
+
+#  Igualdad de derechos para inmigrantes {.tabset .tabset-fade .tabset-pills}
+
+
+
+> Se propone utilizar un modelo de una dimensión y cuatro indicadores. Con esto se reduce la batería desde 8 preguntas a 4. El modelo elegido es el con mejor ajuste. 
+
+
+ * P19B: Los hijos y las hijas de inmigrantes deberían tener las mismas oportunidades de educación que los otros niños y niñas del país
+  
+ * P19D: Los inmigrantes deberían tener la oportunidad de continuar con sus costumbres y estilo de vida 
+
+ * P19C: Los inmigrantes que han vivido en un país por varios años deberían poder votar en las elecciones
+  
+ * P19E: Los inmigrantes deberían tener los mismos derechos que el resto de los habitantes del país
+
+
+Eliminadas
+
+ * P19A: Los inmigrantes deberían tener la oportunidad de seguir hablando su idioma
+ * P19H: Los inmigrantes tienen costumbres y tradiciones que no se ajustan con la sociedad chilena
+
+ * P19F: Cuando no hay suficientes trabajos disponibles, se debería restringir la inmigración 
+ * P19G: Los inmigrantes frecuentemente ocupan los puestos de trabajos de los chilenos
+
+
+  
+```{r, echo=FALSE, results='hide'}
+# Igualdad de derechos para inmigrantes
+
+
+load(file="../input/data/original.RData")
+
+pacman::p_load(dplyr, sjmisc, car, sjlabelled, stargazer, SciViews, summarytools, misty,sjPlot,PerformanceAnalytics,ggplot2,lavaan,stats, semPlot)
+
+# Seleccionar y renombrar variables de la base de datos de estudiantes.                               
+est_proc_inmigrantes <- est  %>% dplyr::select(starts_with("P19")) 
+
+est_proc_inmigrantes <- set_na(est_proc_inmigrantes, na = c(5,9), drop.levels = TRUE, as.tag = FALSE) # Transformar a NA
+
+est_proc_inmigrantes = na.omit(est_proc_inmigrantes)
+```
+
+## Modelos de medida
+
+```{r, echo=FALSE, results='hide'}
+#-----------------------------------------------------------------------------------------##
+
+# Exploratorio 
+
+factanal(est_proc_inmigrantes, factors = 1, rotation = "none")
+
+
+# AFC: Modelo con todos los indicadores
+
+
+
+
+
+modeloinmigrantes =  'simbolico =~ P19A + P19H + P19D 
+                      material=~ P19F +  P19G  
+                      derechos =~  P19C + P19E + P19B '
+
+fit1 <- cfa(modeloinmigrantes, data=est_proc_inmigrantes, estimator="DWLS", ordered = T)
+
+summary(fit1, fit.measures=TRUE)
+
+#semPaths(fit1, what = "stand")
+
+# AFC: Modelo con indicadores reducidos
+
+modeloinmigrantes =  'simbolico =~ P19A + P19H  
+                      material=~ P19F +  P19G  
+                      derechos =~  P19C + P19E  '
+
+fit2 <- cfa(modeloinmigrantes, data=est_proc_inmigrantes, estimator="DWLS", ordered = T)
+
+summary(fit2, fit.measures=TRUE)
+
+#semPaths(fit2, what = "stand")
+
+modificationindices(fit2)
+
+
+#####
+
+modeloinmigrantes3 =  ' derechos =~  P19C + P19B + P19E + P19D '
+
+fit3 <- cfa(modeloinmigrantes3, data=est_proc_inmigrantes, estimator="DWLS", ordered = T)
+
+summary(fit3, fit.measures=TRUE)
+
+```
+
+
+```{r echo=FALSE}
+
+#-----------------------------------------------------------------------------------------##
+# Crear tabla para comprarar afc
+
+pacman::p_load(dplyr, kableExtra, knitr)
+
+# extract fit indices from models and add to table
+sum_fit1<- dplyr::bind_rows(fitmeasures(fit1)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                    fitmeasures(fit2)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],fitmeasures(fit3)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")])
+
+# Customize object
+sum_fit1$mod <- c("Todas las variables","3 dimensiones 6 items","1 dimensión 4 items")
+sum_fit1$nobs <- c(nobs(fit1),nobs(fit2),nobs(fit3))
+sum_fit1$est <- c("DWLS","DWLS","DWLS")
+sum_fit1$df<-c(sum_fit1$chisq/sum_fit1$df)
+sum_fit1 <- dplyr::select(sum_fit1,mod,nobs,est,everything())
+colnames <- c("Utilizando variables como","$N$","Estimador","$\\chi^2$","$\\chi2$/df","p-value","CFI","TLI","RMSEA","SRMR")
+
+# Create table
+table_cfa_fits1 <-kable(sum_fit1, format="pandoc", digits=3, booktabs=T, col.names=colnames,  caption = "Comperación entre modelos", escape = FALSE) %>% kable_styling(full_width = F, font_size = 14)
+table_cfa_fits1
+
+```
+
+> Modelo reducido de 4 items en 1 dimension
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit3, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit3 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit3) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit3), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+
+
+
+> Modelo reducido de 6 items en 3 dimensiones
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit2, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit2 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit2) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+> Modelo completo 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit1, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit1 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit1) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit3), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+
+
+
+## Descriptivos
+```
+
+
+## Descriptivos
+
+
+```{r, echo=FALSE}
+
+sjPlot::view_df(est_proc_inmigrantes, show.type = T, show.frq = T) # Cambiar por dfsummary
+items <- c("A", "B","C","D","E", "F","G","H","I")
+
+# cambiar orden para la leyenda
+labels= c("Muy en desacuerdo",
+"En desacuerdo",
+"De acuerdo",
+"Muy de acuerdo")
+
+
+sjPlot::plot_likert(est_proc_inmigrantes,
+                         axis.labels   = items,
+                         legend.labels = labels,
+                         legend.pos = "bottom",
+                         #cat.neutral   = , # identifica a indiferentes
+                         geom.colors   = c("#9ECAE1", "#6BAED6", "#4292C6",
+                                           "#2171B5"), # colorbrewer2.org
+                         sort.frq      = "neg.asc", # sort descending)
+                         title         = "Creencias y opiniones políticas, tolerancia etnicos",
+                         intercept.line.color = "white", # vertical middle
+                         expand.grid   = F, # no inner margins in plot
+                         show.n        = FALSE, # hide N's in axis labels
+                         grid.range    = 1.8,
+                         geom.size = 0.6, values = "sum.outside")
+
+```
+
+## correlaciones 
+
+```{r, echo=FALSE}
+
+
+est_proc_inmigrantes =na.omit(est_proc_inmigrantes)
+
+chart.Correlation(est_proc_inmigrantes, histogram = TRUE, method = "pearson")
+```
+
+
+
+# Autoritarismo {.tabset .tabset-fade .tabset-pills}
+
+
+> Se eliminan 2 variables  y se mantienen 6 variables
+
+ 
+
+Justificación dictaduraas
+
+  * P21H:  Los gobiernos autoritarios se justifican cuando traen orden y seguridad
+  * P21I:  Los gobiernos autoritarios se justifican cuando traen beneficios económicos
+
+Autoritarismo
+ 
+ * P21E: Los gobernantes deben hacer valer su autoridad 
+ * P21G: La concentración del poder ayuda a mantener el orden
+
+
+Variables no seleccionadas
+
+  * P21A: Los jóvenes deben aprender a obedecer y respetar a las autoridades
+  * P21B: Mientras más personas estén dispuestas a criticar y desafiar a las autoridades es mejor para la sociedad
+  * P21C: La tolerancia con ideas distintas es uno de los valores más importantes que los jóvenes debieran aprender
+  * P21D: A veces es mejor que los gobernantes tomen decisiones sin consultar a las mayorías
+  * P21F: Los gobernantes pierden autoridad cuando reconocen sus errores
+
+
+
+```{r}
+load(file="../input/data/original.RData")
+
+pacman::p_load(dplyr, sjmisc, car, sjlabelled, stargazer, SciViews, summarytools, misty,sjPlot,PerformanceAnalytics,ggplot2,lavaan,stats, semPlot)
+
+# Seleccionar y renombrar variables de la base de datos de estudiantes.                               
+est_proc_autoritarismo <- est  %>% dplyr::select(starts_with("P21")) 
+
+est_proc_autoritarismo <- set_na(est_proc_autoritarismo, na = c(5,9), drop.levels = TRUE, as.tag = FALSE) # Transformar a NA
+
+est_proc_autoritarismo =na.omit(est_proc_autoritarismo)
+
+
+```
+
+
+## Modelos 
+
+```{r, results='hide'}
+# Exploratorio 
+
+factanal(est_proc_autoritarismo, factors = 1, rotation = "none")
+
+# El análisis exploratorio indica que no hay dimensiones, cuando se agregan las variables tienden a tener un tercio de carga en cada factor-
+
+# Cuando se utiliza un solo factor no se incluyen las variables P21B y c. 
+
+# Las únicas variables que poseen una relación alta entre si son las dos más conocidas del concepto H e I  y la G que capta bien la idea de autoritarismo.
+
+#
+
+# AFC: Modelo con todos los indicadores
+
+
+
+modeloautoritario1 =  ' autoritarismo =~ P21A + P21B + P21C + P21D +  P21E + P21F + P21G + P21H + P21I'
+
+fit1 <- cfa(modeloautoritario1, data=est_proc_autoritarismo, estimator="DWLS", ordered = T)
+
+#summary(fit1, fit.measures=TRUE)
+
+#semPaths(fit1, what = "stand")
+
+# AFC: Modelo con indicadores reducidos
+
+modeloautoritario2 =  ' autoritarismo_oportuno =~ P21H + P21I
+                        autoritarismo=~ P21E + P21G '
+
+fit2 <- cfa(modeloautoritario2, data=est_proc_autoritarismo, estimator="DWLS", ordered = T)
+
+#summary(fit2, fit.measures=TRUE)
+
+#semPaths(fit2, what = "stand")
+
+#modificationindices(fit2)
+
+
+
+
+```
+
+
+
+```{r}
+#-----------------------------------------------------------------------------------------##
+pacman::p_load(dplyr, kableExtra, knitr)
+
+# extract fit indices from models and add to table
+sum_fit1<- dplyr::bind_rows(fitmeasures(fit1)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                    fitmeasures(fit2)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")])
+
+# Customize object
+sum_fit1$mod <- c("Todas las variables","Bateria recortada")
+sum_fit1$nobs <- c(nobs(fit1),nobs(fit2))
+sum_fit1$est <- c("DWLS","DWLS")
+sum_fit1$df_ch<-c(sum_fit1$chisq/sum_fit1$df)
+sum_fit1 <- dplyr::select(sum_fit1,mod,nobs,est,everything())
+colnames <- c("Modelo","$N$","Estimador","$\\chi^2$","df","p-value","CFI","TLI","RMSEA","SRMR","$\\chi2$/df")
+
+# Create table
+table_cfa_fits1 <-kable(sum_fit1, format="pandoc", digits=3, booktabs=T, col.names=colnames,  caption = "Comperación entre modelos", escape = FALSE) %>% kable_styling(full_width = F, font_size = 14)
+table_cfa_fits1
+
+
+```
+
+
+
+> Modelo reducido 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit2, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit2 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit2) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+> Modelo completo 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit1, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit1 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit1) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+
+
+
+## Descriptivos
+```
+
+
+
+## Descriptivo
+
+```{r}
+#Descriptivos
+ 
+sjPlot::view_df(est_proc_autoritarismo, show.type = T, show.frq = T) # Cambiar por dfsummary
+
+items <- c("A", "B","C","D","E", "F")
+
+# cambiar orden para la leyenda
+labels= c("Muy en desacuerdo",
+"En desacuerdo",
+"De acuerdo",
+"Muy de acuerdo")
+
+
+sjPlot::plot_likert(est_proc_autoritarismo,
+                         axis.labels   = items,
+                         legend.labels = labels,
+                         legend.pos = "bottom",
+                         #cat.neutral   = , # identifica a indiferentes
+                         geom.colors   = c("#9ECAE1", "#6BAED6", "#4292C6",
+                                           "#2171B5"), # colorbrewer2.org
+                         sort.frq      = "neg.asc", # sort descending)
+                         title         = "Creencias y opiniones políticas, tolerancia etnicos",
+                         intercept.line.color = "white", # vertical middle
+                         expand.grid   = F, # no inner margins in plot
+                         show.n        = FALSE, # hide N's in axis labels
+                         grid.range    = 1.8,
+                         geom.size = 0.6, values = "sum.outside")
+
+```
+
+## Correlaciones
+
+```{r}
+# correlaciones 
+
+chart.Correlation(est_proc_autoritarismo, histogram = TRUE, method = "pearson")
+
+# La variable P21B  y P21C no correlaciona bien con las demas.   
+
+#-----------------------------------------------------------------------------------------##
+```
+
+# Legitimidad de la desigualdad {.tabset .tabset-fade .tabset-pills}
+
+> Concuerdo con que sería bueno recuperar las variables a,  b, e y f. Estas pueden formar dos factores. Son relevantes tanto por la contingencia como por su aplicación en otros contextos lo cual hace más fácil dialogar con otra literatura.
+
+
+
+
+```{r}
+load(file="../input/data/original.RData")
+
+pacman::p_load(dplyr, sjmisc, car, sjlabelled, stargazer, SciViews, summarytools, misty,sjPlot,PerformanceAnalytics,ggplot2,lavaan,stats, semPlot)
+
+# Seleccionar y renombrar variables de la base de datos de estudiantes.                               
+est_proc_legdesigual<- est  %>% dplyr::select(starts_with("P25")) 
+
+est_proc_legdesigual <- set_na(est_proc_legdesigual, na = c(5,9), drop.levels = TRUE, as.tag = FALSE) # Transformar a NA
+
+est_proc_legdesigual =na.omit(est_proc_legdesigual)
+
+
+```
+
+
+## Modelos 
+
+```{r, results='hide'}
+# Exploratorio 
+
+factanal(est_proc_legdesigual, factors = 1, rotation = "none")
+
+
+
+modeloautoritario1 =  ' jus_des =~ P25A + P25B + P25E + P25F'
+
+fit1 <- cfa(modeloautoritario1, data=est_proc_legdesigual, estimator="DWLS", ordered = T)
+
+#summary(fit1, fit.measures=TRUE)
+
+#semPaths(fit1, what = "stand")
+
+# AFC: Modelo con indicadores reducidos
+
+modeloautoritario2 =  ' jus_des_ec =~ P25A + P25B 
+                        jus_des_ser =~ P25E + P25F'
+
+fit2 <- cfa(modeloautoritario2, data=est_proc_legdesigual, estimator="DWLS", ordered = T)
+
+#summary(fit2, fit.measures=TRUE)
+
+#semPaths(fit2, what = "stand")
+
+#modificationindices(fit2)
+
+
+
+
+```
+
+
+
+```{r}
+#-----------------------------------------------------------------------------------------##
+pacman::p_load(dplyr, kableExtra, knitr)
+
+# extract fit indices from models and add to table
+sum_fit1<- dplyr::bind_rows(fitmeasures(fit1)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                    fitmeasures(fit2)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")])
+
+# Customize object
+sum_fit1$mod <- c("Unidimensional","Bidimensional")
+sum_fit1$nobs <- c(nobs(fit1),nobs(fit2))
+sum_fit1$est <- c("DWLS","DWLS")
+sum_fit1$df_ch<-c(sum_fit1$chisq/sum_fit1$df)
+sum_fit1 <- dplyr::select(sum_fit1,mod,nobs,est,everything())
+colnames <- c("Modelo","$N$","Estimador","$\\chi^2$","df","p-value","CFI","TLI","RMSEA","SRMR","$\\chi2$/df")
+
+# Create table
+table_cfa_fits1 <-kable(sum_fit1, format="pandoc", digits=3, booktabs=T, col.names=colnames,  caption = "Comperación entre modelos", escape = FALSE) %>% kable_styling(full_width = F, font_size = 14)
+table_cfa_fits1
+
+
+```
+
+
+
+> Modelo reducido 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit2, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit2 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit2) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+> Modelo completo 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit1, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+
+semPaths(
+  fit1 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit1) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+
+
+
+## Descriptivos
+```
+
+
+
+## Descriptivo
+
+```{r}
+#Descriptivos
+
+
+#sjPlot::view_df(est_proc_inmigrantes, show.type = T, show.frq = T) # Cambiar por dfsummary
+items <- c("Demasiada desigualdad", "Pref. redistributiva","Jus. Des. Educ","Jus. Des. Salud")
+
+# cambiar orden para la leyenda
+labels= c("Muy en desacuerdo",
+"En desacuerdo",
+"De acuerdo",
+"Muy de acuerdo")
+
+
+est_proc_legdesigual %>%  select(contains("A"),contains("B"),contains("E"),contains("F")) %>% sjPlot::plot_likert( axis.labels   = items,
+                         legend.labels = labels,
+                         legend.pos = "bottom",
+                         #cat.neutral   = , # identifica a indiferentes
+                         geom.colors   = c("#9ECAE1", "#6BAED6", "#4292C6",
+                                           "#2171B5"), # colorbrewer2.org
+                         sort.frq      = "neg.asc", # sort descending)
+                         title         = "Creencias y opiniones políticas, tolerancia etnicos",
+                         intercept.line.color = "white", # vertical middle
+                         expand.grid   = F, # no inner margins in plot
+                         show.n        = FALSE, # hide N's in axis labels
+                         grid.range    = 1.8,
+                         geom.size = 0.6, values = "sum.outside")
+
+
+```
+
+## Correlaciones
+
+```{r}
+# correlaciones 
+
+
+est_proc_legdesigual %>%  select(contains("A"),contains("B"),contains("E"),contains("F")) %>% chart.Correlation(histogram = TRUE, method = "pearson")
+
+# La variable P21B  y P21C no correlaciona bien con las demas.   
+
+#-----------------------------------------------------------------------------------------##
+```
+
+
+
+
+
+
+
+## 
+
+
+
+
+
+
+# Autoestima politico {.tabset .tabset-fade .tabset-pills}
+
+
+
+
+
+> Se eliminan 2 variables y se mantienen 6 variables
+
+
+ La f y la a incorporan aspectos externos a la la comprensión y autoestipa para actuar. Por un lado la incorpora una compración con  los compañeros y la f a temas coyunturales que bien pueden ser complejos en la situación actual.
+ 
+ 
+
+
+```{r}
+load(file="../input/data/original.RData")
+
+pacman::p_load(dplyr, sjmisc, car, sjlabelled, stargazer, SciViews, summarytools, misty,sjPlot,PerformanceAnalytics,ggplot2,lavaan,stats, semPlot)
+
+# Seleccionar y renombrar variables de la base de datos de estudiantes.                               
+est_proc_autoritarismo <- est  %>% dplyr::select(starts_with("P47")) 
+
+est_proc_autoritarismo <- set_na(est_proc_autoritarismo, na = c(5,9), drop.levels = TRUE, as.tag = FALSE) # Transformar a NA
+
+est_proc_autoritarismo =na.omit(est_proc_autoritarismo)
+
+
+```
+
+
+## Modelos 
+
+```{r}
+# Exploratorio 
+
+#factanal(est_proc_autoritarismo, factors = 1, rotation = "none")
+
+# AFC: Modelo con todos los indicadores
+
+
+
+modeloautoritario1 =  ' autoestima =~ P47A + P47B + P47C + P47D +  P47E + P47F'
+
+fit1 <- cfa(modeloautoritario1, data=est_proc_autoritarismo, estimator="DWLS", ordered = T)
+
+#summary(fit1, fit.measures=TRUE)
+
+#semPaths(fit1, what = "stand")
+
+# AFC: Modelo con indicadores reducidos
+
+modeloautoritario2 =  ' autoestima =~ P47E + P47B + P47C + P47D '
+
+fit2 <- cfa(modeloautoritario2, data=est_proc_autoritarismo, estimator="DWLS", ordered = T)
+
+#summary(fit2, fit.measures=TRUE)
+
+#semPaths(fit2, what = "stand")
+
+#modificationindices(fit2)
+
+```
+
+
+
+```{r}
+#-----------------------------------------------------------------------------------------##
+pacman::p_load(dplyr, kableExtra, knitr)
+
+# extract fit indices from models and add to table
+sum_fit1<- dplyr::bind_rows(fitmeasures(fit1)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")],
+                    fitmeasures(fit2)[c("chisq","df","pvalue","cfi","tli","rmsea","srmr")])
+
+# Customize object
+sum_fit1$mod <- c("Todas las variables","Bateria recortada")
+sum_fit1$nobs <- c(nobs(fit1),nobs(fit2))
+sum_fit1$est <- c("DWLS","DWLS")
+sum_fit1$df_ch<-c(sum_fit1$chisq/sum_fit1$df)
+sum_fit1 <- dplyr::select(sum_fit1,mod,nobs,est,everything())
+colnames <- c("Modelo","$N$","Estimador","$\\chi^2$","df","p-value","CFI","TLI","RMSEA","SRMR","$\\chi2$/df")
+
+# Create table
+table_cfa_fits1 <-kable(sum_fit1, format="pandoc", digits=3, booktabs=T, col.names=colnames,  caption = "Comperación entre modelos", escape = FALSE) %>% kable_styling(full_width = F, font_size = 14)
+table_cfa_fits1
+
+
+```
+
+
+
+> Modelo reducido 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit2, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit2 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit2) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", "; N= ",nobs(fit2), "; chi^2(df) = ",fm03[1,],"(",fm03[2,],")","; p= ",fm03[5,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = 10)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+```
+
+> Modelo completo 
+
+```{r, echo =FALSE,results='hide'}
+library(sjPlot)
+library(dplyr)
+library(lavaan)
+library(semPlot)
+library(stargazer)
+library(corrplot)
+library(psych)
+library(knitr)
+library(kableExtra)
+library(rvest)
+library(sjlabelled)
+library(ggplot2)
+
+fm03<- data.frame(v1=fitmeasures(fit1, output ="matrix")[c("chisq","df","cfi","rmsea","pvalue"),])
+fm03 <- round(fm03,3)
+par(mai = c(2,2,2,2)) # Set the margin on all sides to 2
+par(mar = c(5, 5, 5, 5)) # Set the margin on all sides to 6
+layout(matrix(c(1, # semPlot
+                1, # semPlot
+                1,
+                1,
+                1,
+                2),# ajuste
+              nrow=6,
+              byrow=TRUE))
+
+#layout.show(n = 2)
+semPaths(
+  fit1 ,
+   whatLabels = "std", # Indica si aparecen los valores
+  #what = "mod",
+  label.cex = 1.3, # Tamaño de las etiquetas dentro de los nodos.
+  edge.label.cex =  1.8, #  0.8 Tamaño de los valores estimados.
+  residuals = T,
+  optimizeLatRes =F,
+  edge.color = "black",
+  style = "lisrel",
+  nCharNodes = 0,
+  curvePivot = F,
+  curve = 2.5,
+  rotation = 4,
+  layout = "tree2",
+  cardinal = "lat cov",
+  legend.cex = 0.6, # 0.6
+  label.cex = 1,
+  label.font = 6,
+  edge.label.font = 14,
+  asize = 3,
+  edge.width = 1.2,
+  sizeMan = 8,# largo manifest
+  sizeMan2= 8,# alto manifest
+  sizeLat = 5.5, # largo de los circulos
+  sizeLat2 = 20, # alto de los circulos
+  residScale = 10,
+  width = 21.5, # 17
+  height = 10, # 10
+  # nodeNames = nodeNames,
+  intercepts = F,
+  reorder = T,
+  thresholds = F,
+  fixedStyle =1,
+  node.height = 1,
+  node.width = 4,
+  label.scale = F,
+  shapeMan = "rectangle",
+  shapeLat = "ellipse",
+ # nodeLabels = nodeNames,
+  details = T)
+
+ld<- standardizedsolution(fit1) %>% select(lhs,op,rhs,est.std) %>% filter(op=="=~") 
+ld$est.std<- sprintf("%.2f", ld$est.std)
+
+
+
+library(draw) #para hacer rectangulo de fit
+
+
+size <- 10
+
+drawText(x = 3, y = 5.5, text = paste0("Estimator: DWLS", ", N= ",nobs(fit1),"Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"$p$=",fm03[4,],"; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+
+#drawText(x = 2.3+adj_x, y = 1.60-adj_y, text = paste0("Model fit: ", "$chi^2$","(",fm03[2,],")=",fm03[1,],"***","; CFI=",fm03[3,],"; RMSEA=",fm03[4,]),family = "serif",size = size)
+
+#drawText(x = 1.0+adj_x, y = 1.70-adj_y, text = paste0("***p<0.001"),family = "serif",size = size)
+
+#guardar en png
+drawExport("meas03.png",units = "cm",width = 18,height = 15,ppi = 300) 
+
+
+
+
+## Descriptivos
+```
+
+
+
+## Descriptivo
+
+```{r}
+#Descriptivos
+ 
+#sjPlot::view_df(est_proc_autoritarismo, show.type = T, show.frq = T) # Cambiar por dfsummary
+
+
+items <- c("A", "B","C","D","E", "F","G","H","I")
+
+# cambiar orden para la leyenda
+labels= c("Muy en desacuerdo",
+"En desacuerdo",
+"De acuerdo",
+"Muy de acuerdo")
+
+
+sjPlot::plot_likert(est_proc_legdesigual,
+                         axis.labels   = items,
+                         legend.labels = labels,
+                         legend.pos = "bottom",
+                         #cat.neutral   = , # identifica a indiferentes
+                         geom.colors   = c("#9ECAE1", "#6BAED6", "#4292C6",
+                                           "#2171B5"), # colorbrewer2.org
+                         sort.frq      = "neg.asc", # sort descending)
+                         title         = "Creencias y opiniones políticas, tolerancia etnicos",
+                         intercept.line.color = "white", # vertical middle
+                         expand.grid   = F, # no inner margins in plot
+                         show.n        = FALSE, # hide N's in axis labels
+                         grid.range    = 1.8,
+                         geom.size = 0.6, values = "sum.outside")
+
+
+```
+
+## Correlaciones
+
+```{r}
+# correlaciones 
+
+chart.Correlation(est_proc_autoritarismo, histogram = TRUE, method = "pearson")
+
+# La variable P21B  y P21C no correlaciona bien con las demas.   
+
+#-----------------------------------------------------------------------------------------##
+```
+
+
+
+
+
+
+
+
+
+
